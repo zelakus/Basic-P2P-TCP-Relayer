@@ -1,6 +1,6 @@
 ﻿namespace P2P_Relayer.Common
 {
-    public enum Opcodes
+    public enum Opcodes : byte
     {
         ActivateReq,
         ActivateAck,

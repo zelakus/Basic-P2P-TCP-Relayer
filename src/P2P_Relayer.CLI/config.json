@@ -1,5 +1,5 @@
 ﻿{
-  "endpoint": "localhost:8080",
+  "endpoint": "127.0.0.1:53960",
   "token": "kelek!karpuzlar1arasi25uzay@2istasyonu#",
   "IsHost": true
 }

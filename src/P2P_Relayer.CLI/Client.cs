@@ -1,4 +1,6 @@
 ﻿using LiteNetLib;
+using LiteNetLib.Utils;
+using P2P_Relayer.Common;
 using System;
 using System.Net;
 
@@ -10,6 +12,7 @@ namespace P2P_Relayer.CLI
         private readonly EventBasedNetListener _listener;
         private NetPeer _peer;
         private string _p2pToken = string.Empty;
+        private bool _connected2Gateway;
 
         public NatPunchModule NatPunchModule => _manager.NatPunchModule;
 
@@ -17,6 +20,7 @@ namespace P2P_Relayer.CLI
         public Client()
         {
             _listener = new EventBasedNetListener();
+            _connected2Gateway = false;
 
             _manager = new NetManager(_listener)
             {
@@ -53,13 +57,29 @@ namespace P2P_Relayer.CLI
         private void PeerConnectedEvent(NetPeer peer)
         {
             _peer = peer;
-            Console.WriteLine($"Connected to peer {peer.Id}.");
+
+            if (!_connected2Gateway)
+            {
+                Console.WriteLine($"Connected to gateway #{peer.Id}.");
+                _connected2Gateway = true;
+
+                //Create message
+                NetDataWriter writer = new NetDataWriter();
+                writer.Put((byte)Opcodes.ActivateReq);
+                writer.Put(Program.Config.IsHost);
+                writer.Put(Program.Config.Token);
+
+                //Send message
+                peer.Send(writer.Data, DeliveryMethod.ReliableOrdered);
+            }
+            else
+                Console.WriteLine($"Connected to peer #{peer.Id}.");
         }
 
         private void PeerDisconnectedEvent(NetPeer peer, DisconnectInfo disconnectInfo)
         {
             _peer = null;
-            Console.WriteLine($"Disconnected from peer {peer.Id}.");
+            Console.WriteLine($"Disconnected from #{peer.Id}.");
         }
 
         private void NetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)

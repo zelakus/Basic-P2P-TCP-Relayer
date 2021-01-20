@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Net;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using LiteNetLib;
+﻿using LiteNetLib;
 using LiteNetLib.Utils;
 using P2P_Relayer.Common;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Threading;
 
 namespace P2P_Relayer.Gateway
 {
@@ -52,7 +51,7 @@ namespace P2P_Relayer.Gateway
         {
             request.Accept();
         }
-        
+
         private void PeerConnectedEvent(NetPeer peer)
         {
             Console.WriteLine($"Peer {peer.Id} has connected.");
@@ -66,8 +65,8 @@ namespace P2P_Relayer.Gateway
                 _hosts.Remove(_hosts.First(x => x.Value.Id == peer.Id).Key, out _);
                 Console.WriteLine($"Host {peer.Id} has disconnected.");
             }
-
-            Console.WriteLine($"Peer {peer.Id} has disconnected.");
+            else
+                Console.WriteLine($"Peer {peer.Id} has disconnected.");
         }
 
         private void NetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
@@ -86,11 +85,11 @@ namespace P2P_Relayer.Gateway
 
             if (!reader.TryGetString(out var token))
                 return;
-            
+
             //Add host to dictionary or connect peer with host
             if (ishost)
             {
-                _hosts.AddOrUpdate(token, peer, (key,old) => peer);
+                _hosts.AddOrUpdate(token, peer, (key, old) => peer);
                 Console.WriteLine($"Peer {peer.Id} is now a Host.");
             }
             else if (_hosts.TryGetValue(token, out var host))
