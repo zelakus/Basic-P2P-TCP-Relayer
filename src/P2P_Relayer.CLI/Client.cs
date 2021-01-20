@@ -69,7 +69,7 @@ namespace P2P_Relayer.CLI
 
         public void OnNatIntroductionRequest(IPEndPoint localEndPoint, IPEndPoint remoteEndPoint, string token)
         {
-            //Client doesn't handle OnNatIntroductionRequest, it's gateway's job
+            //Client doesn't handle OnNatIntroductionRequest, it's server's job
         }
 
         public void OnNatIntroductionSuccess(IPEndPoint targetEndPoint, string token)
@@ -82,7 +82,7 @@ namespace P2P_Relayer.CLI
             if (peer == null)
                 return;
 
-            //Disconnect from gateway, we no longer need it
+            //If this is not a host then disconnect from gateway, we no longer need it
             _peer.Disconnect();
 
             // Todo: Create rift depending on config.IsHost

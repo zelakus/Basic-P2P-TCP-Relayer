@@ -6,7 +6,12 @@ namespace P2P_Relayer.Gateway
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            int port = 53960;
+            var server = new Server(port);
+            Console.WriteLine($"Server is working on {port}");
+            
+            Console.ReadLine();
+            server.Stop();
         }
     }
 }
