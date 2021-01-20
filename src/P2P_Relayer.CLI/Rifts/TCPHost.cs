@@ -11,7 +11,7 @@ namespace P2P_Relayer.CLI.Rifts
     {
         private class RiftClient
         {
-            public int Id;
+            public readonly int Id;
             public TcpClient TcpClient;
             public TCPHost Host;
 
@@ -33,6 +33,7 @@ namespace P2P_Relayer.CLI.Rifts
 
             void Receive()
             {
+                Thread.Sleep(20);
                 try
                 {
                     byte[] data = new byte[8192];
@@ -55,7 +56,6 @@ namespace P2P_Relayer.CLI.Rifts
                 Host.Ids.Free(Id);
                 if (!terminated)
                 {
-                    Console.WriteLine("Host has lost a rift connection");
                     //Connection lost
                     Host.OnConnectionLost?.Invoke(Id);
                 }
@@ -88,9 +88,10 @@ namespace P2P_Relayer.CLI.Rifts
                 while (listener != null)
                 {
                     var id = Ids.Get();
+
                     var client = new RiftClient(id, listener.AcceptTcpClient(), this);
-                    Console.WriteLine("Host has a new rift connection");
                     Clients.TryAdd(id, client);
+
                     OnConnection?.Invoke(id);
                 }
             }
@@ -103,9 +104,7 @@ namespace P2P_Relayer.CLI.Rifts
         public void Send(int id, byte[] data)
         {
             if (Clients.TryGetValue(id, out var target))
-            {
                 target.TcpClient.Client.Send(data);
-            }
         }
 
         public void Stop()

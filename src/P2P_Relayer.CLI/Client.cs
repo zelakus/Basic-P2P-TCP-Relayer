@@ -4,6 +4,7 @@ using P2P_Relayer.CLI.Rifts;
 using P2P_Relayer.Common;
 using System;
 using System.Net;
+using System.Threading;
 
 namespace P2P_Relayer.CLI
 {
@@ -26,7 +27,6 @@ namespace P2P_Relayer.CLI
             _manager = new NetManager(_listener)
             {
                 AutoRecycle = true,
-                UnsyncedEvents = true,
                 NatPunchEnabled = true
             };
 
@@ -38,9 +38,12 @@ namespace P2P_Relayer.CLI
             _manager.NatPunchModule.Init(this);
             _manager.Start();
 
+            //Start ticking thread
+            new Thread(new ThreadStart(ClientTick)).Start();
+
             //Start local rift (if we have the host then start client and vice versa)
             if (Program.Config.IsHost)
-                Rift = new TCPClient(8080); //TODO: use config
+                Rift = new TCPClient(80); //TODO: use config
             else
                 Rift = new TCPHost();
 
@@ -48,6 +51,23 @@ namespace P2P_Relayer.CLI
             Rift.OnConnectionLost = OnRiftConnectionLost;
             Rift.OnReceive = OnRiftData;
             Console.WriteLine($"Created local rift on port {Rift.Port}.");
+        }
+
+        private void ClientTick()
+        {
+            while (_manager != null)
+            {
+                Thread.Sleep(20);
+                try
+                {
+                    _manager?.PollEvents();
+                    _manager?.NatPunchModule.PollEvents();
+                }
+                catch
+                {
+                    //Nothing
+                }
+            }
         }
 
         #region Rift Events
@@ -104,12 +124,10 @@ namespace P2P_Relayer.CLI
 
         private void PeerConnectedEvent(NetPeer peer)
         {
-            _peer = peer;
-
             if (!_connected2Gateway)
             {
-                Console.WriteLine($"Connected to gateway #{peer.Id}.");
                 _connected2Gateway = true;
+                Console.WriteLine($"Connected to gateway #{peer.Id}.");
 
                 //Create message
                 NetDataWriter writer = new NetDataWriter();
@@ -118,16 +136,25 @@ namespace P2P_Relayer.CLI
                 writer.Put(Program.Config.Token);
 
                 //Send message
-                peer.Send(writer.Data, DeliveryMethod.ReliableOrdered);
+                peer.Send(writer, DeliveryMethod.ReliableOrdered);
             }
             else
+            {
                 Console.WriteLine($"Connected to peer #{peer.Id}.");
+                _peer = peer;
+            }
         }
 
         private void PeerDisconnectedEvent(NetPeer peer, DisconnectInfo disconnectInfo)
         {
+            if (!_connected2Gateway)
+                Console.WriteLine("Gateway is offline!");
+            else if (_peer == null)
+                Console.WriteLine("Disconnected from gateway.");
+            else
+                Console.WriteLine($"Disconnected from #{peer.Id}.");
+
             _peer = null;
-            Console.WriteLine($"Disconnected from #{peer.Id}.");
         }
 
         private void NetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
@@ -142,7 +169,7 @@ namespace P2P_Relayer.CLI
 
         public void OnNatIntroductionSuccess(IPEndPoint targetEndPoint, string token)
         {
-            if (_p2pToken == token)
+            if (_peer != null)
                 return;
 
             //Directly connect, if it fails return
@@ -150,12 +177,6 @@ namespace P2P_Relayer.CLI
             if (peer == null)
                 return;
 
-            //If this is not a host then disconnect from gateway, we no longer need it
-            if (!Program.Config.IsHost)
-                _peer.Disconnect();
-
-            //Set p2p info
-            _p2pToken = token;
             _peer = peer;
         }
     }

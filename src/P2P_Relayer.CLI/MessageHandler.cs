@@ -1,6 +1,7 @@
 ﻿using LiteNetLib;
 using P2P_Relayer.Common;
 using System;
+using System.Net;
 
 namespace P2P_Relayer.CLI
 {
@@ -52,11 +53,11 @@ namespace P2P_Relayer.CLI
         {
             if (!reader.TryGetString(out var token))
             {
-                Console.WriteLine("No token in HandleActivateAck.");
+                Console.WriteLine("Host is offline.");
                 return;
             }
 
-            client.NatPunchModule.SendNatIntroduceRequest(null, token);
+            client.NatPunchModule.SendNatIntroduceRequest(IPEndPoint.Parse(Program.Config.EndPoint), token);
         }
     }
 }
