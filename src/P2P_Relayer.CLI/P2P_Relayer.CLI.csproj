@@ -7,10 +7,17 @@
 
   <ItemGroup>
     <PackageReference Include="LiteNetLib.NetStandard" Version="0.8.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\P2P_Relayer.Common\P2P_Relayer.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
