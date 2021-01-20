@@ -1,12 +1,19 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using P2P_Relayer.CLI;
+using System;
+using System.IO;
 
 namespace P2P_Relayer
 {
     class Program
     {
-        static void Main(string[] args)
+
+        static void Main()
         {
-            Console.WriteLine("Hello World!");
+            var config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(@"config.json"));
+
+
+            Console.WriteLine("hey");
         }
     }
 }
