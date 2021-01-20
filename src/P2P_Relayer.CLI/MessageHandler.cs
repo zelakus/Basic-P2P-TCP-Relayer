@@ -27,13 +27,23 @@ namespace P2P_Relayer.CLI
                     break;
 
                 case Opcodes.EventConnect:
-                    //TODO
+                    {
+                        if (reader.TryGetInt(out var id))
+                            client.Rift.Connect(id);
+                    }
                     break;
                 case Opcodes.EventDisconnect:
-                    //TODO
+                    {
+                        if (reader.TryGetInt(out var id))
+                            client.Rift.Disconnect(id);
+                    }
                     break;
                 case Opcodes.EventData:
-                    //TODO
+                    {
+                        if (reader.TryGetInt(out var id))
+                            if (reader.TryGetBytesWithLength(out var data))
+                                client.Rift.Send(id, data);
+                    }
                     break;
             }
         }

@@ -12,10 +12,11 @@ namespace P2P_Relayer
 
         static void Main()
         {
+            Console.WriteLine("Loading config...");
             Config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(@"config.json"));
 
+            Console.WriteLine("Starting client...");
             var client = new Client();
-            Console.WriteLine("Client is working...");
             client.Connect(IPEndPoint.Parse(Config.EndPoint));
 
             while (true)

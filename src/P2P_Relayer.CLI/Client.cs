@@ -1,5 +1,6 @@
 ﻿using LiteNetLib;
 using LiteNetLib.Utils;
+using P2P_Relayer.CLI.Rifts;
 using P2P_Relayer.Common;
 using System;
 using System.Net;
@@ -15,7 +16,7 @@ namespace P2P_Relayer.CLI
         private bool _connected2Gateway;
 
         public NatPunchModule NatPunchModule => _manager.NatPunchModule;
-
+        public IRift Rift;
 
         public Client()
         {
@@ -36,7 +37,54 @@ namespace P2P_Relayer.CLI
 
             _manager.NatPunchModule.Init(this);
             _manager.Start();
+
+            //Start local rift (if we have the host then start client and vice versa)
+            if (Program.Config.IsHost)
+                Rift = new TCPClient(8080); //TODO: use config
+            else
+                Rift = new TCPHost();
+
+            Rift.OnConnection = OnRiftConnection;
+            Rift.OnConnectionLost = OnRiftConnectionLost;
+            Rift.OnReceive = OnRiftData;
+            Console.WriteLine($"Created local rift on port {Rift.Port}.");
         }
+
+        #region Rift Events
+        private void OnRiftData(int id, byte[] data)
+        {
+            //Write message
+            NetDataWriter writer = new NetDataWriter();
+            writer.Put((byte)Opcodes.EventData);
+            writer.Put(id);
+            writer.PutBytesWithLength(data);
+
+            //Send message
+            _peer?.Send(writer, DeliveryMethod.ReliableOrdered);
+        }
+
+        private void OnRiftConnectionLost(int id)
+        {
+            //Write message
+            NetDataWriter writer = new NetDataWriter();
+            writer.Put((byte)Opcodes.EventDisconnect);
+            writer.Put(id);
+
+            //Send message
+            _peer?.Send(writer, DeliveryMethod.ReliableOrdered);
+        }
+
+        private void OnRiftConnection(int id)
+        {
+            //Write message
+            NetDataWriter writer = new NetDataWriter();
+            writer.Put((byte)Opcodes.EventConnect);
+            writer.Put(id);
+
+            //Send message
+            _peer?.Send(writer, DeliveryMethod.ReliableOrdered);
+        }
+        #endregion
 
         public NetPeer Connect(IPEndPoint endpoint)
         {
@@ -103,9 +151,8 @@ namespace P2P_Relayer.CLI
                 return;
 
             //If this is not a host then disconnect from gateway, we no longer need it
-            _peer.Disconnect();
-
-            // Todo: Create rift depending on config.IsHost
+            if (!Program.Config.IsHost)
+                _peer.Disconnect();
 
             //Set p2p info
             _p2pToken = token;
