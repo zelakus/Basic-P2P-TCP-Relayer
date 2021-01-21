@@ -10,14 +10,37 @@ namespace P2P_Relayer
     {
         internal static Config Config;
 
+        const string configName = "config.json";
         static void Main()
         {
-            Console.WriteLine("Loading config...");
-            Config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(@"config.json"));
+            //Get config
+            if (!File.Exists(configName))
+            {
+                Console.WriteLine("Creating default config...");
+                Config = new Config();
+                File.WriteAllText(configName, JsonConvert.SerializeObject(Config));
+            }
+            else
+            {
+                Console.WriteLine("Loading config...");
+                Config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(configName));
+            }
 
-            Console.WriteLine("Starting client...");
-            var client = new Client();
-            client.Connect(IPEndPoint.Parse(Config.EndPoint));
+            //Start host/client
+            IClient client;
+            if (Config.IsHost)
+            {
+                Console.WriteLine("Starting host...");
+                client = new Host();
+            }
+            else
+            {
+                Console.WriteLine("Starting client...");
+                client = new Client();
+            }
+
+            //Connect to gateway
+            client.Connect(IPEndPoint.Parse(Config.EndPoint), isGateway: true);
 
             while (true)
                 Console.ReadLine();

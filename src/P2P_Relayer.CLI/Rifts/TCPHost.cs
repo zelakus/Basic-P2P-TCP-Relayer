@@ -7,6 +7,7 @@ using System.Threading;
 
 namespace P2P_Relayer.CLI.Rifts
 {
+    //Host only has one target, ownerId is useless
     class TCPHost : IRift
     {
         private class RiftClient
@@ -61,9 +62,9 @@ namespace P2P_Relayer.CLI.Rifts
                 }
             }
         }
-        public Action<int, byte[]> OnReceive { get; set; }
-        public Action<int> OnConnectionLost { get; set; }
-        public Action<int> OnConnection { get; set; }
+        public Action<long, byte[]> OnReceive { get; set; }
+        public Action<long> OnConnectionLost { get; set; }
+        public Action<long> OnConnection { get; set; }
 
         TcpListener listener;
         readonly IdGenerator Ids = new IdGenerator();
@@ -101,7 +102,7 @@ namespace P2P_Relayer.CLI.Rifts
             }
         }
 
-        public void Send(int id, byte[] data)
+        public void Send(int ownerId, int id, byte[] data)
         {
             if (Clients.TryGetValue(id, out var target))
                 target.TcpClient.Client.Send(data);
@@ -116,13 +117,18 @@ namespace P2P_Relayer.CLI.Rifts
             listener = null;
         }
 
-        public void Disconnect(int id)
+        public void Disconnect(int ownerId, int id)
         {
             if (Clients.TryRemove(id, out var client))
                 client.Terminate();
         }
 
-        public void Connect(int id)
+        public void DisconnectOf(int ownerId)
+        {
+            //
+        }
+
+        public void Connect(int ownerId, int id)
         {
             //Not used, Host can't initiate connections
         }

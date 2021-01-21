@@ -14,10 +14,4 @@
     <ProjectReference Include="..\P2P_Relayer.Common\P2P_Relayer.Common.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="config.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

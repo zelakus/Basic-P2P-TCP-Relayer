@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -10,11 +11,11 @@ namespace P2P_Relayer.CLI.Rifts
     {
         private class RiftConnection
         {
-            public int Id;
+            public long Id;
             public TcpClient TcpClient;
             public TCPClient Owner;
 
-            public RiftConnection(int id, TCPClient owner)
+            public RiftConnection(long id, TCPClient owner)
             {
                 Id = id;
                 Owner = owner;
@@ -60,11 +61,11 @@ namespace P2P_Relayer.CLI.Rifts
             }
         }
 
-        public Action<int> OnConnectionLost { get; set; }
-        public Action<int> OnConnection { get; set; } //Not used, Client can't receive connection request
-        public Action<int, byte[]> OnReceive { get; set; }
+        public Action<long> OnConnectionLost { get; set; }
+        public Action<long> OnConnection { get; set; } //Not used, Client can't receive connection request
+        public Action<long, byte[]> OnReceive { get; set; }
 
-        readonly ConcurrentDictionary<int, RiftConnection> Connections = new ConcurrentDictionary<int, RiftConnection>();
+        readonly ConcurrentDictionary<long, RiftConnection> Connections = new ConcurrentDictionary<long, RiftConnection>();
 
         public bool IsTcp => true;
         public int Port => _port;
@@ -75,28 +76,50 @@ namespace P2P_Relayer.CLI.Rifts
             _port = port;
         }
 
-        public void Connect(int id)
+        public void Connect(int ownerId, int id)
         {
-            var connection = new RiftConnection(id, this);
-            Connections.TryAdd(id, connection);
+            long connectionId = (long)ownerId << 32;
+            connectionId |= (long)id;
+
+            var connection = new RiftConnection(connectionId, this);
+            Connections.TryAdd(connectionId, connection);
         }
 
-        public void Disconnect(int id)
+        public void Disconnect(int ownerId, int id)
         {
+            long connectionId = (long)ownerId << 32;
+            connectionId |= (long)id;
+
+            Disconnect(connectionId);
+        }
+
+        private void Disconnect(long id)
+        {
+
             if (Connections.TryRemove(id, out var connection))
                 connection.Terminate();
         }
 
-        public void Send(int target, byte[] data)
+        public void DisconnectOf(int ownerId)
         {
+            var keys = Connections.Keys.Where(x => x >> 32 == ownerId);
+            foreach (var key in keys)
+                Disconnect(key);
+        }
+
+        public void Send(int ownerId, int target, byte[] data)
+        {
+            long connectionId = (long)ownerId << 32;
+            connectionId |= (long)target;
+
             try
             {
-                if (Connections.TryGetValue(target, out var connection))
+                if (Connections.TryGetValue(connectionId, out var connection))
                     connection.TcpClient.Client.Send(data);
             }
             catch
             {
-                if (Connections.TryGetValue(target, out var connection))
+                if (Connections.TryGetValue(connectionId, out var connection))
                     connection.Terminate(false);
             }
         }

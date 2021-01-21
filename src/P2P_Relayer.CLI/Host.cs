@@ -3,22 +3,24 @@ using LiteNetLib.Utils;
 using P2P_Relayer.CLI.Rifts;
 using P2P_Relayer.Common;
 using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Threading;
 
 namespace P2P_Relayer.CLI
 {
-    internal class Client : INatPunchListener, IClient
+    internal class Host : INatPunchListener, IClient
     {
         private readonly NetManager _manager;
         private readonly EventBasedNetListener _listener;
+        private readonly ConcurrentDictionary<int, string> _p2pTokens = new ConcurrentDictionary<int, string>();
+        private readonly ConcurrentDictionary<int, NetPeer> _peers = new ConcurrentDictionary<int, NetPeer>();
         private NetPeer _gateway;
-        private NetPeer _peer;
 
         public NatPunchModule NatPunchModule => _manager.NatPunchModule;
         public IRift Rift { get; set; }
 
-        public Client()
+        public Host()
         {
             _listener = new EventBasedNetListener();
 
@@ -40,7 +42,7 @@ namespace P2P_Relayer.CLI
             new Thread(new ThreadStart(ClientTick)).Start();
 
             //Start local rift (if we have the host then start client and vice versa)
-            Rift = new TCPHost
+            Rift = new TCPClient(Program.Config.TargetPort)
             {
                 OnConnection = OnRiftConnection,
                 OnConnectionLost = OnRiftConnectionLost,
@@ -72,11 +74,12 @@ namespace P2P_Relayer.CLI
             //Write message
             NetDataWriter writer = new NetDataWriter();
             writer.Put((byte)Opcodes.EventData);
-            writer.Put((int)id);
+            writer.Put((int)(id & 0xFFFFFFFF));
             writer.PutBytesWithLength(data);
 
             //Send message
-            _peer?.Send(writer, DeliveryMethod.ReliableOrdered);
+            if (_peers.TryGetValue((int)(id>>32), out var peer))
+                peer.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
         private void OnRiftConnectionLost(long id)
@@ -84,10 +87,11 @@ namespace P2P_Relayer.CLI
             //Write message
             NetDataWriter writer = new NetDataWriter();
             writer.Put((byte)Opcodes.EventDisconnect);
-            writer.Put((int)id);
+            writer.Put((int)(id & 0xFFFFFFFF));
 
             //Send message
-            _peer?.Send(writer, DeliveryMethod.ReliableOrdered);
+            if (_peers.TryGetValue((int)(id >> 32), out var peer))
+                peer.Send(writer, DeliveryMethod.ReliableOrdered);
         }
 
         private void OnRiftConnection(long id)
@@ -95,10 +99,11 @@ namespace P2P_Relayer.CLI
             //Write message
             NetDataWriter writer = new NetDataWriter();
             writer.Put((byte)Opcodes.EventConnect);
-            writer.Put((int)id);
+            writer.Put((int)(id & 0xFFFFFFFF));
 
             //Send message
-            _peer?.Send(writer, DeliveryMethod.ReliableOrdered);
+            if (_peers.TryGetValue((int)(id >> 32), out var peer))
+                peer.Send(writer, DeliveryMethod.ReliableOrdered);
         }
         #endregion
 
@@ -112,19 +117,16 @@ namespace P2P_Relayer.CLI
 
         private void ConnectionRequestEvent(ConnectionRequest request)
         {
-            if (_peer == null)
-                request.AcceptIfKey(Constants.ConnectionKey);
+            request.AcceptIfKey(Constants.ConnectionKey);
         }
 
         private void PeerConnectedEvent(NetPeer peer)
         {
             if (peer != _gateway)
             {
-                _peer = peer;
-                Console.WriteLine($"Connected to host.");
+                Console.WriteLine($"Connected to peer #{peer.Id}.");
                 return;
             }
-
 
             Console.WriteLine($"Connected to gateway.");
 
@@ -147,8 +149,10 @@ namespace P2P_Relayer.CLI
                 return;
             }
 
-            Console.WriteLine($"Disconnected from host.");
-            _peer = null;
+            Rift.DisconnectOf(peer.Id);
+            _peers.TryRemove(peer.Id, out _);
+            _p2pTokens.TryRemove(peer.Id, out _);
+            Console.WriteLine($"Disconnected from peer #{peer.Id}.");
         }
 
         private void NetworkReceiveEvent(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
@@ -163,15 +167,18 @@ namespace P2P_Relayer.CLI
 
         public void OnNatIntroductionSuccess(IPEndPoint targetEndPoint, string token)
         {
-            if (_peer != null)
+            //Check if we already connected (incase both local & remote endpoint succeeds)
+            if (_p2pTokens.Values.Contains(token))
                 return;
 
-            //Directly connect, if it fails return
+            //Directly connect
             var peer = Connect(targetEndPoint);
             if (peer == null)
                 return;
 
-            _peer = peer;
+            //Register peer
+            _p2pTokens.TryAdd(peer.Id, token);
+            _peers.TryAdd(peer.Id, peer);
         }
     }
 }

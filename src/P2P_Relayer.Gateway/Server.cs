@@ -49,7 +49,7 @@ namespace P2P_Relayer.Gateway
 
         private void ConnectionRequestEvent(ConnectionRequest request)
         {
-            request.Accept();
+            request.AcceptIfKey(Constants.ConnectionKey);
         }
 
         private void PeerConnectedEvent(NetPeer peer)

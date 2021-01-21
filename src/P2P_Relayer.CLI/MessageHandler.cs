@@ -7,7 +7,7 @@ namespace P2P_Relayer.CLI
 {
     internal class MessageHandler
     {
-        internal static void Handle(Client client, NetPacketReader reader)
+        internal static void Handle(IClient client, NetPeer sender, NetPacketReader reader)
         {
             if (!reader.TryGetByte(out byte rawOpcode))
             {
@@ -30,26 +30,26 @@ namespace P2P_Relayer.CLI
                 case Opcodes.EventConnect:
                     {
                         if (reader.TryGetInt(out var id))
-                            client.Rift.Connect(id);
+                            client.Rift.Connect(sender.Id, id);
                     }
                     break;
                 case Opcodes.EventDisconnect:
                     {
                         if (reader.TryGetInt(out var id))
-                            client.Rift.Disconnect(id);
+                            client.Rift.Disconnect(sender.Id, id);
                     }
                     break;
                 case Opcodes.EventData:
                     {
                         if (reader.TryGetInt(out var id))
                             if (reader.TryGetBytesWithLength(out var data))
-                                client.Rift.Send(id, data);
+                                client.Rift.Send(sender.Id, id, data);
                     }
                     break;
             }
         }
 
-        private static void HandleActivateAck(Client client, NetPacketReader reader)
+        private static void HandleActivateAck(IClient client, NetPacketReader reader)
         {
             if (!reader.TryGetString(out var token))
             {
